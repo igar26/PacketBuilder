@@ -16,3 +16,19 @@ We assume scapy and python untilitiy are installed in the system.
 - COMMAND to run: sudo -E python packet_build_send.py 3 "en1"
 - Output is just a interger of how many packets are sent from the eth port.
 
+
+
+Send Packet Utility:
+Write a program which can construct a packet based on the following inputs from the user:
+	•	Port to send packets from
+	•	Type of packet to be sent (IPV4, IPVv6, ARP, TCP (with v4), UDP (with v6)) etc. You can define the enum for valid packet types and restrict user here 
+	•	Based on above input for packet type, Request the packet specific params (for eg: for UDP you will need to request src and dst port, over and above the params like src ds tip needed for ipv4/ipv6)
+
+Script should:
+	•	Start sending packets form the given port with the constructed packet
+	•	On doing a ctrl+c (sigkill), the script should stop sending packets
+	•	Final count of packets sent should be displayed.
+
+As a pointer, please take a look at the following python module.
+https://scapy.net
+ 
