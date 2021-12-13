@@ -359,7 +359,6 @@ class Packet_Builder():
         try:
             while KeyboardInterrupt:
                 p.show()
-                input("PE")
                 sendp(p, iface=self._interface, count=1)
                 count += 1
         except KeyboardInterrupt:
