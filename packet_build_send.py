@@ -13,6 +13,26 @@ from ipaddress import IPv4Address
 
 class Packet_Builder():
 
+    def ptype(self):
+        logging.info("Will modify the packet type based on the headers")
+        if self._packet.haslayer(Dot1Q):
+            self._packet.type=0x8100
+            if self._packet.haslayer(ARP):
+                self._packet[Dot1Q].type = 0x806
+            if self._packet.haslayer(IP):
+                self._packet[Dot1Q].type = 0x800
+            if self._packet.haslayer(IPv6):
+                self._packet[Dot1Q].type = 0x86dd
+        else:
+            self._packet.type=0x8000
+            if self._packet.haslayer(ARP):
+                self._packet.type = 0x806
+            if self._packet.haslayer(IP):
+                self._packet.type = 0x800
+            if self._packet.haslayer(IPv6):
+                self._packet.type = 0x86dd
+
+
     def __init__(self, packet_type, iface):
         self._packet_type = str(packet_type)
         self._packet = None
@@ -32,21 +52,32 @@ class Packet_Builder():
 
         if self._packet_type == "L2_Ether":
             self._packet = self.get_ether_layer()
+            self.ptype()
             self.run(self._packet)
         
         elif self._packet_type == "ARP":
             self._packet = self.get_ether_layer(arp=True)
+            self.ptype()
             self.run(self._packet)
         
         elif self._packet_type == "L3_IP":
             self._packet = self.get_ether_layer()
             self._packet = self.build_l3_layer(self._packet, 255)
+            self.ptype()
             self.run(self._packet)
 
         elif self._packet_type == "L3_TCP":
             self._packet = self.get_ether_layer()
             self._packet = self.build_l3_layer(self._packet)
             self._packet = self.build_l3_tcp_or_udp_layer(self._packet, tcp=True)
+            self.ptype()
+            self.run(self._packet)
+        
+        elif self._packet_type == "L3_UDP":
+            self._packet = self.get_ether_layer()
+            self._packet = self.build_l3_layer(self._packet)
+            self._packet = self.build_l3_tcp_or_udp_layer(self._packet, tcp=False)
+            self.ptype()
             self.run(self._packet)
     
     def check_valid_mac(self, mac):
@@ -113,7 +144,7 @@ class Packet_Builder():
             return True
         return False
 
-    def get_ether_layer(self, ptype=0x8000, arp=False):
+    def get_ether_layer(self, arp=False):
         """
         This function forms a l2 packet and returns it, there are all fields are populated
         by user input else we will form a packert with default values, user can build different type of packets
@@ -143,13 +174,15 @@ class Packet_Builder():
             self._dstmac = "ff:ff:ff:ff:ff:ff"
         
         vlan_id_needed = input("Please input \"yes\" if a vlan header to be added else \"no\": ").lower()
-        if arp and vlan_id_needed == "no" or len(vlan_id_needed) == 0:
-            ptype = 0x806
-        elif arp and vlan_id_needed == "yes":
-            ptype = 0x8100
-        else:
-            ptype = 0x8000
-        packet = Ether(src=self._srcmac, dst=self._dstmac, type=ptype)
+        # if arp and vlan_id_needed == "no" or len(vlan_id_needed) == 0:
+        #     ptype = 0x806
+        # elif arp and vlan_id_needed == "yes":
+        #     ptype = 0x8100
+        # elif not arp and vlan_id_needed == "yes":
+        #     ptype = 0x8100
+        # else:
+        #     ptype = 0x8000
+        packet = Ether(src=self._srcmac, dst=self._dstmac)
         logging.info("Enter Vlan details for the packet")
         # Though scapy accepts any vlan number lets be sure to check this is vlan id
         if vlan_id_needed == "yes":
@@ -172,13 +205,13 @@ class Packet_Builder():
                 else:
                     packet /= Dot1Q(vlan=0, prio=vlan_prio if self.check_vlan_prio(vlan_prio) else 3)
         if arp:
-            self._srcip = input("Please input L3 - SrcIP mac address for building ARP packet if no \
-                input is given default value of 10.10.10.10 is used: ")
+            self._srcip = input("Please input L3 - SrcIP mac address for building ARP packet if no " 
+                                "input is given default value of 10.10.10.10 is used: ")
             logging.info("Check wheter user had passed valid source ip address "
                          "else take default value of 10.10.10.10")
             self._srcip = self._srcip if self.check_length_of_input_field(min_len=7, max_len=15, parameter=self._srcip) else "10.10.10.10"
-            self._dstip = input("Please input L3 - DstIP address for building ARP packet if no \
-                input is given default value of 20.20.20.20 is used: ")
+            self._dstip = input("Please input L3 - DstIP address for building ARP packet if no "
+                                "input is given default value of 20.20.20.20 is used: ")
             logging.info("Check wheter user had passed valid destination ip address else take default value of 20.20.20.20")
             self._dstip = self._dstip if self.check_length_of_input_field(min_len=7, max_len=15, parameter=self._dstip) else "20.20.20.20"
             packet /= ARP(op=1, psrc=self._srcip if self.check_valid_ip(self._srcip) else "10.10.10.10",
